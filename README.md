@@ -11,6 +11,12 @@ Le projet comprend une présentation, un tableau de bord de notre catalogue de f
 
 Les fichiers bruts ne sont jamais modifiés. Les fichiers transformés par notre code sont dans `data/propre/`.
 
+## Transformation des données
+
+Les données ont été filtrées pour correspondre à ce que nous voulions proposer dans notre cinéma. On a commencé par trier sur la colonne `genres` pour n'avoir que des `Comedy`. Puis, on a filtrer pour retirer les séries et les courts-métrages et n'avoir que des films. On a donc prix uniquement les `movie` de la colonne `titleType`.
+Après un merge avec la base TMDB, on a choisi de garder que les films sortis après 1980 en filtrant sur `startYear`. Enfin, on a pris uniquement les films de production française, colone `production_countries` contient `France` ou les films internationnaux qui ont une note supérieure ou égale à 8 (`averageRating`) et un nombre de voet supérieur à 500 (`numVotes`) afin de ne conserver que les meilleurs films internationnaux.
+On a également retiré tous les films pour adultes noté dans les deux bases (colonnes `adult == 0` et colonne `isAdult == 0`), et on a retiré les films dont la note moyenne était en dessous de 5 (`averageRating`)
+
 ## Avancement
 
 ## US02 — Titres français 
