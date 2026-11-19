@@ -47,10 +47,16 @@ akas_fr = akas_fr.rename(columns={"title": "titre_fr"})
 
 # Export du fichier propre
 akas_fr.to_csv("data/propre/titres_fr.csv", index=False)
+
+# Merge des 2 fichiers csv propre (film_propre et titre_fr)
+film_complet = pd.merge(data, data2, how="left", left_on="tconst", right_on='titleId')
+
+# Verification du même nombre de film entre notre base de donnée initial et la nouvelle base après le merge, toujours 3105 films
+print(data.shape, film_complet.shape)
+
+# Suppression des colonnes inutiles pour notre analyse
+film_complet = film_complet.drop(columns=['region', 'isOriginalTitle', 'ordering', 'types', 'titleId'])
+
+# Export du fichier propre : film_complet
+film_complet.to_csv("../data/propre/film_complet.csv", index=False)
 ```
-
-**Prochaine étape :** rattacher ces titres au catalogue, avec un titre de secours quand aucun titre français officiel n'existe :
-
-1. titre français officiel (`imdbDisplay`) ;
-2. sinon, pour un film d'origine française (`original_language == "fr"`), le titre original (`originalTitle`) ;
-3. sinon, le titre IMDb (`primaryTitle`).
