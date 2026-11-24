@@ -19,7 +19,7 @@ Les données contennaient 12 997 011 films
 On les a filtrées pour qu'elles correspondent à ce que nous voulions proposer dans notre cinéma. On a commencé par trier sur la colonne `genres` pour n'avoir que des `Comedy`. On a réduit à 2 495 129 films.
 Puis, on a filtrer pour retirer les séries et les courts-métrages et n'avoir que des films. On a donc prix uniquement les `movie` de la colonne `titleType`, ce qui nous a amené à 126 748 films.
 Après un merge avec la base TMDB, on a choisi de garder que les films sortis après 1965 en filtrant sur `startYear`. Notre base à donc été réduite à 91 607 films.
-Enfin, on a pris uniquement les films de production française, colone `production_countries` contient `France` ou les films internationnaux qui ont une note supérieure ou égale à 8 (`averageRating`) et un nombre de voet supérieur à 500 (`numVotes`) afin de ne conserver que les meilleurs films internationnaux. On arrive donc à 4500 films. On a fait ce choix car pour nous le plus important est d'être un cinéma qui fait de la comédie française. Avoir des films internationnaux est possible, mais on ne souhaite avoir que le meilleur, ce que les gens ont préféré en internationnal, pour leur permettre derrière de découvrir des comédies françaises qui correspondent à leurs attentes.
+Enfin, on a pris uniquement les films de production française, colone `production_countries` contient `France` ou les films internationnaux qui ont une note supérieure ou égale à 8 (`averageRating`) et un nombre de vote supérieur à 500 (`numVotes`) afin de ne conserver que les meilleurs films internationnaux. On arrive donc à 4500 films. On a fait ce choix car pour nous le plus important est d'être un cinéma qui fait de la comédie française. Avoir des films internationnaux est possible, mais on ne souhaite avoir que le meilleur, ce que les gens ont préféré en internationnal, pour leur permettre derrière de découvrir des comédies françaises qui correspondent à leurs attentes.
 On a décidé de considéré "comédie française" toutes les comédies qui ont une porduction tout ou partie française. Un film internationnal mais qui est co-produit français/USA, on le considère de production française.
 On a également retiré tous les films pour adultes noté dans les deux bases (colonnes `adult == 0` et colonne `isAdult == 0`), ce qui nous donne 4393 films, et on a retiré les films dont la note moyenne était en dessous de 5 (`averageRating`) ce qui nous amène à un total de 3677 films.
 
@@ -29,7 +29,7 @@ Notre cinéma se veut familial, on a donc retiré tous les films "pour adulte", 
 
 ## Avancement
 
-## US02 — Titres français 
+## US02 — Titres français
 
 **Objectif :** afficher les films sous leur titre français (*Les Évadés* plutôt que *The Shawshank Redemption*).
 
