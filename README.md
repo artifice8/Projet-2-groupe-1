@@ -27,46 +27,65 @@ Enfin, on a retirés tous les doublons qu'on a repéré sur la colonne `tconst` 
 
 Notre cinéma se veut familial, on a donc retiré tous les films "pour adulte", cependant nous pensons que des films interdits au moins de 10 ou 12 ans ne doivent pas être exclus de notre catalogue. La plupart de nos films sont pour tout publique, il ne nous semble pas que si certains sont pour les plus grands il faille les retirer.
 
-## Avancement
 
-## US02 — Titres français
+## Préparation du catalogue final
 
-**Objectif :** afficher les films sous leur titre français (*Les Évadés* plutôt que *The Shawshank Redemption*).
+**Code :** `notebook/preparation_catalogue_final.ipynb` (version détaillée) et
+`notebook/preparation_catalogue_final.py` (code seul).
 
-**Démarche :**
+**Entrée :** `data/propre/film_propre.csv` (films filtrés, joints avec TMDB) + `data/propre/titres_fr.csv`
+**Sortie :** `data/propre/film_complet.csv` (catalogue final : une ligne par film, sans doublon)
 
-1. Les titres par pays se trouvent dans `title.akas`. Le filtre porte sur `region == "FR"` et non sur la langue : les titres marqués en langue `fr` sont surtout québécois.
-2. Seuls les titres officiels (`types == "imdbDisplay"`) sont conservés, car ce sont les plus fiables.
-3. 637 films avaient plusieurs titres officiels (souvent des ressorties de films anciens). Un seul titre est gardé par film, départagé par la colonne `ordering`.
-4. Résultat exporté dans `data/propre/titres_fr.csv`.
+**Lancer le script** depuis la racine du projet :
 
-**Code :**
-
-```python
-# Je garde uniquement les titres utilisés en France (region == "FR") et officiels (types == "imdbDisplay")
-akas_fr = title_akas[(title_akas["region"] == "FR") & (title_akas["types"] == "imdbDisplay")][["titleId", "title", "types", "ordering"]]
-
-# Je trie par titleId, puis par ordering (numéro de ligne IMDb) pour départager les doublons
-akas_fr = akas_fr.sort_values(["titleId", "ordering"])
-
-# Je supprime les doublons en gardant le premier titre de chaque film
-akas_fr = akas_fr.drop_duplicates(subset=["titleId"], keep="first")
-
-# Je renomme la colonne pour éviter la confusion avec le "title" de TMDB
-akas_fr = akas_fr.rename(columns={"title": "titre_fr"})
-
-# Export du fichier propre
-akas_fr.to_csv("data/propre/titres_fr.csv", index=False)
-
-# Merge des 2 fichiers csv propre (film_propre et titre_fr)
-film_complet = pd.merge(data, data2, how="left", left_on="tconst", right_on='titleId')
-
-# Verification du même nombre de film entre notre base de donnée initial et la nouvelle base après le merge, toujours 3105 films
-print(data.shape, film_complet.shape)
-
-# Suppression des colonnes inutiles pour notre analyse
-film_complet = film_complet.drop(columns=['region', 'isOriginalTitle', 'ordering', 'types', 'titleId'])
-
-# Export du fichier propre : film_complet
-film_complet.to_csv("../data/propre/film_complet.csv", index=False)
+```bash
+python notebook/preparation_catalogue_final.py
 ```
+
+### Les étapes
+
+1. **Lecture** du fichier de films filtrés.
+2. **Une seule ligne par film** : si TMDB a plusieurs fiches pour un même film, on garde la plus populaire.
+3. **Colonnes inutiles** : suppression des doublons IMDb/TMDB (on garde IMDb, qui a servi aux filtres),
+   des colonnes majoritairement vides et de celles sans utilité pour le projet.
+4. **Titres français** : jointure avec `titres_fr.csv`, issu du fichier IMDb `title.akas`
+   (filtré sur la région FR, et non sur la langue, pour éviter les titres québécois).
+5. **Titre affiché** : titre français s'il existe ; sinon titre original pour un film français ;
+   sinon titre principal IMDb.
+6. **Ordre et renommage** des colonnes en français, avec la source (`_imdb`, `_tmdb`) si besoin.
+7. **Export** de `film_complet.csv`.
+
+### Résultat
+
+| Contrôle | Valeur |
+|---|---|
+| Films | 3 508 |
+| Colonnes | 16 |
+| Doublons | 0 |
+| Films avec un titre français | 2 814 (80 %) |
+
+### Colonnes de `film_complet.csv`
+
+| Colonne | Source | Description |
+|---|---|---|
+| `id_imdb` | IMDb | identifiant unique du film |
+| `titre` | IMDb (title.akas) + règle | titre affiché |
+| `titre_original` | IMDb | titre dans la langue d'origine |
+| `titre_principal` | IMDb | titre principal, souvent en anglais |
+| `annee` | IMDb | année de sortie |
+| `duree_min` | IMDb | durée en minutes |
+| `genres` | IMDb | jusqu'à 3 genres, séparés par des virgules |
+| `note_imdb` | IMDb | note moyenne sur 10 |
+| `nb_votes_imdb` | IMDb | nombre de votants |
+| `popularite_tmdb` | TMDB | score de popularité |
+| `langue_originale` | TMDB | langue d'origine du film |
+| `pays_production` | TMDB | pays de production |
+| `societes_production` | TMDB | sociétés de production |
+| `resume` | TMDB | résumé du film (en anglais) |
+| `mots_cles` | TMDB | mots-clés décrivant le film |
+| `affiche` | TMDB | fin de l'adresse de l'affiche (après `https://image.tmdb.org/t/p/w500`) |
+
+### Limites
+
+- 694 films (20 %) n'ont pas de titre français : ils gardent leur titre original ou leur titre principal IMDb.
+- La langue d'origine vient de TMDB : si elle est absente, le film prend le titre principal.
