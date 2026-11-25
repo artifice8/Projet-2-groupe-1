@@ -21,42 +21,128 @@ On a également retiré tous les films pour adultes noté dans les deux bases (c
 
 ## US02 — Titres français 
 
-**Objectif :** afficher les films sous leur titre français (*Les Évadés* plutôt que *The Shawshank Redemption*).
+## Titres français et catalogue final
 
-**Démarche :**
+Objectif : produire `data/propre/film_complet.csv`, le catalogue utilisé par le tableau de bord
+et l'application, avec pour chaque film le titre sous lequel il est connu en France.
 
-1. Les titres par pays se trouvent dans `title.akas`. Le filtre porte sur `region == "FR"` et non sur la langue : les titres marqués en langue `fr` sont surtout québécois.
-2. Seuls les titres officiels (`types == "imdbDisplay"`) sont conservés, car ce sont les plus fiables.
-3. 637 films avaient plusieurs titres officiels (souvent des ressorties de films anciens). Un seul titre est gardé par film, départagé par la colonne `ordering`.
-4. Résultat exporté dans `data/propre/titres_fr.csv`.
+### Étape 1 : extraire les titres français (`titres_fr.csv`)
 
-**Code :**
+Source : le fichier IMDb `title.akas`, qui liste les titres de chaque film dans chaque pays
+(le fichier TMDB ne contient pas de titre français).
+
+- `region == "FR"` plutôt que `language == "fr"`, qui donne surtout des titres québécois ;
+- `types == "imdbDisplay"` : le titre officiellement affiché ;
+- un seul titre par film, pour ne pas créer de doublons lors de la jointure.
 
 ```python
-# Je garde uniquement les titres utilisés en France (region == "FR") et officiels (types == "imdbDisplay")
-akas_fr = title_akas[(title_akas["region"] == "FR") & (title_akas["types"] == "imdbDisplay")][["titleId", "title", "types", "ordering"]]
+# Garder uniquement les titres utilisés en France et officiels
+akas_fr = title_akas[(title_akas["region"] == "FR") & (title_akas["types"] == "imdbDisplay")][["titleId", "title", "types", "ordering", "region", "isOriginalTitle"]]
 
-# Je trie par titleId, puis par ordering (numéro de ligne IMDb) pour départager les doublons
+# Trier par film, puis par ordering, pour départager les doublons
 akas_fr = akas_fr.sort_values(["titleId", "ordering"])
 
-# Je supprime les doublons en gardant le premier titre de chaque film
+# Garder un seul titre par film
 akas_fr = akas_fr.drop_duplicates(subset=["titleId"], keep="first")
 
-# Je renomme la colonne pour éviter la confusion avec le "title" de TMDB
+# Renommer la colonne pour éviter la confusion avec le "title" de TMDB
 akas_fr = akas_fr.rename(columns={"title": "titre_fr"})
 
-# Export du fichier propre
+# Exporter le fichier des titres français
 akas_fr.to_csv("data/propre/titres_fr.csv", index=False)
-
-# Merge des 2 fichiers csv propre (film_propre et titre_fr)
-film_complet = pd.merge(data, data2, how="left", left_on="tconst", right_on='titleId')
-
-# Verification du même nombre de film entre notre base de donnée initial et la nouvelle base après le merge, toujours 3105 films
-print(data.shape, film_complet.shape)
-
-# Suppression des colonnes inutiles pour notre analyse
-film_complet = film_complet.drop(columns=['region', 'isOriginalTitle', 'ordering', 'types', 'titleId'])
-
-# Export du fichier propre : film_complet
-film_complet.to_csv("../data/propre/film_complet.csv", index=False)
 ```
+
+### Étape 2 : construire le catalogue final (`film_complet.csv`)
+
+Point de départ : `data`, les films filtrés (IMDb) déjà joints avec TMDB.
+
+**1. Supprimer les colonnes inutiles ou en double**
+
+- doublons IMDb / TMDB (titres, votes, durée, date, genres, identifiants) : nous gardons la version IMDb,
+  qui a servi à nos filtres. Les genres IMDb et TMDB divergent sur 502 films ;
+- `budget` et `revenue` : à 0 pour plus de 85 % des films ;
+- colonnes sans utilité pour le projet (`homepage`, `backdrop_path`, `tagline`…).
+
+```python
+data = data.drop(columns=["titleType", "isAdult", "endYear", "tagline", "id",
+                          "vote_average", "vote_count", "genres_y", "spoken_languages",
+                          "imdb_id", "backdrop_path", "release_date", "homepage", "adult",
+                          "status", "runtime", "budget", "revenue", "title", "original_title"])
+```
+
+**2. Ajouter le titre français**
+
+```python
+titres_fr = pd.read_csv("../data/propre/titres_fr.csv")
+titres_fr = titres_fr[["titleId", "titre_fr"]]
+
+# left : conserver tous les films, même sans titre français
+data = pd.merge(data, titres_fr, how="left", left_on="tconst", right_on="titleId")
+data = data.drop(columns=["titleId"])
+```
+
+**3. Créer le titre affiché**
+
+Règle : le titre français s'il existe ; sinon le titre original pour un film français ;
+sinon le titre principal IMDb.
+
+```python
+import numpy as np
+
+# Titre de secours : titre original si le film est en français, sinon titre principal
+data["titre_affiche"] = np.where(data["original_language"] == "fr",
+                                 data["originalTitle"],
+                                 data["primaryTitle"])
+
+# Remplacer par le titre français quand il existe
+data["titre_affiche"] = data["titre_fr"].fillna(data["titre_affiche"])
+```
+
+**4. Ranger, renommer et exporter**
+
+```python
+ordre = ["tconst", "titre_affiche", "originalTitle", "primaryTitle",
+         "startYear", "runtimeMinutes", "genres_x",
+         "averageRating", "numVotes", "popularity",
+         "original_language", "production_countries", "production_companies",
+         "overview", "keywords", "poster_path"]
+data = data[ordre]
+
+data = data.rename(columns={
+    "tconst": "id_imdb", "titre_affiche": "titre", "originalTitle": "titre_original",
+    "primaryTitle": "titre_principal", "startYear": "annee", "runtimeMinutes": "duree_min",
+    "genres_x": "genres", "averageRating": "note_imdb", "numVotes": "nb_votes_imdb",
+    "popularity": "popularite_tmdb", "original_language": "langue_originale",
+    "production_countries": "pays_production", "production_companies": "societes_production",
+    "overview": "resume", "keywords": "mots_cles", "poster_path": "affiche",
+})
+
+data.to_csv("../data/propre/film_complet.csv", index=False, encoding="utf-8-sig")
+```
+
+**5. Supprimer les doublons**
+
+TMDB contient parfois plusieurs fiches pour un même film : la jointure avait créé 169 doublons.
+Les colonnes IMDb sont identiques, seules les colonnes TMDB diffèrent. Les fiches en trop ont
+une popularité de 0 et sont souvent incomplètes (sans résumé, parfois avec une langue fausse).
+Nous gardons, pour chaque film, la fiche TMDB la plus populaire.
+
+```python
+film = pd.read_csv("../data/propre/film_complet.csv")
+
+# Pour chaque film, placer la fiche TMDB la plus populaire en premier
+film = film.sort_values(["id_imdb", "popularite_tmdb"], ascending=[True, False])
+
+# Garder une seule ligne par film
+film = film.drop_duplicates(subset=["id_imdb"], keep="first")
+
+# Vérifier : 0 doublon
+print(film["id_imdb"].duplicated().sum())
+
+film.to_csv("../data/propre/film_complet.csv", index=False, encoding="utf-8-sig")
+```
+
+### Résultat
+
+- **2 936 films** (3 105 lignes avant suppression des 169 doublons), **16 colonnes**
+- **Une ligne par film, sans doublon**
